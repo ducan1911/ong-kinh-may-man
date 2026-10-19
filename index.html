@@ -226,18 +226,30 @@ const SAFE=window.isSecureContext;
 /* ============ ĐIỆN THOẠI ============ */
 function phoneMode(hostId){
   $('host').hidden=true;$('phone').hidden=false;
-  let facing='environment',stream,peer,call;
+  let facing='environment',stream,peer,call,lastL;
   const st=t=>$('pst').textContent=t;
+  const land=()=>screen.orientation&&screen.orientation.type?screen.orientation.type.startsWith('landscape'):innerWidth>innerHeight;
   async function cam(){
+    /* yêu cầu khung hình đúng hướng đang cầm: ngang -> 16:9, dọc -> 9:16 */
+    const L=land(),w=L?1280:720,h=L?720:1280;lastL=L;
     try{
       if(stream)stream.getTracks().forEach(t=>t.stop());
-      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:960},height:{ideal:540},frameRate:{ideal:24,max:30}},audio:false});
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:w},height:{ideal:h},aspectRatio:{ideal:w/h},frameRate:{ideal:24,max:30}},audio:false});
     }catch(e){st('Không mở được camera: '+e.message);return}
-    try{stream.getVideoTracks()[0].contentHint='motion'}catch(e){}
+    const track=stream.getVideoTracks()[0];
+    try{track.contentHint='motion'}catch(e){}
     $('pv').srcObject=stream;$('pgo').hidden=true;$('pflip').hidden=false;$('pre').hidden=false;
+    $('pv').style.aspectRatio=L?'16/9':'3/4';
     try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}
+    /* đã kết nối rồi thì chỉ thay track, không gọi lại -> không bị khựng/mất kết nối */
+    const sender=call&&call.open&&call.peerConnection&&call.peerConnection.getSenders().find(s=>s.track&&s.track.kind==='video');
+    if(sender){try{await sender.replaceTrack(track);return}catch(e){}}
     connect();
   }
+  let rotT;
+  const onRot=()=>{if(!stream)return;clearTimeout(rotT);rotT=setTimeout(()=>{if(land()!==lastL)cam()},400)};
+  addEventListener('orientationchange',onRot);addEventListener('resize',onRot);
+  if(screen.orientation)screen.orientation.addEventListener('change',onRot);
   function connect(){
     if(!peer||peer.destroyed){
       peer=new Peer();
@@ -251,7 +263,7 @@ function phoneMode(hostId){
     st('Đã kết nối ✓ Hướng camera về mọi người');
     setTimeout(()=>{try{call.peerConnection.getSenders().forEach(s=>{
       if(s.track&&s.track.kind==='video'){const p=s.getParameters();p.encodings=p.encodings&&p.encodings.length?p.encodings:[{}];
-        p.encodings[0].maxBitrate=1500000;p.degradationPreference='maintain-framerate';s.setParameters(p).catch(()=>{})}})}catch(e){}},800);
+        p.encodings[0].maxBitrate=2500000;p.degradationPreference='maintain-framerate';s.setParameters(p).catch(()=>{})}})}catch(e){}},800);
     call.on('close',()=>st('Mất kết nối. Bấm "Kết nối lại".'));
   }
   $('pgo').onclick=cam;
@@ -338,7 +350,7 @@ function hostMode(){
     if(det)return;msg('Đang tải mô hình nhận diện khuôn mặt…');
     const V=await import(CDN+'vision_bundle.mjs');
     const fsr=await V.FilesetResolver.forVisionTasks(CDN+'wasm');
-    const opt=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',minDetectionConfidence:.5});
+    const opt=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',minDetectionConfidence:.4});
     try{det=await V.FaceDetector.createFromOptions(fsr,opt('GPU'))}catch(e){det=await V.FaceDetector.createFromOptions(fsr,opt('CPU'))}
   }
   const msg=t=>$('msg').textContent=t;
@@ -356,8 +368,42 @@ function hostMode(){
       for(let i=0;i<80&&!vid.videoWidth;i++)await new Promise(r=>setTimeout(r,100));
       if(!vid.videoWidth)throw new Error('Không nhận được hình từ camera');
     }catch(e){alert('Không thể bắt đầu: '+e.message);goSetup();return}
-    msg('');faces=[];lastCd=-1;dur=secs*1000;t0=performance.now();state='scan';startMusic();raf=requestAnimationFrame(frame);
+    msg('');faces=[];tracks=[];lastCd=-1;dur=secs*1000;t0=performance.now();state='scan';startMusic();raf=requestAnimationFrame(frame);
   }
+  /* Nhận diện mặt ở xa: mô hình BlazeFace "short-range" chỉ thấy mặt khá to trong khung,
+     nên mỗi chu kỳ quét cả khung hình + 1 ô (60% khung, luân phiên 4 ô) được phóng to,
+     rồi gộp kết quả theo thời gian để khuôn mặt nhỏ không bị chớp tắt. */
+  let tracks=[],tileIdx=0,tsLast=0;
+  const sc=document.createElement('canvas'),sctx=sc.getContext('2d');
+  const TILES=[[0,0],[.4,0],[0,.4],[.4,.4]],TS=.6;
+  const nts=()=>(tsLast=Math.max(tsLast+1,performance.now()));
+  const iou=(a,b)=>{const x1=Math.max(a.originX,b.originX),y1=Math.max(a.originY,b.originY),x2=Math.min(a.originX+a.width,b.originX+b.width),y2=Math.min(a.originY+a.height,b.originY+b.height);
+    const i=Math.max(0,x2-x1)*Math.max(0,y2-y1);return i/((a.width*a.height+b.width*b.height-i)||1)};
+  function detectCycle(now){
+    const vw=vid.videoWidth,vh=vid.videoHeight,found=[];
+    try{for(const d of det.detectForVideo(vid,nts()).detections)found.push({...d.boundingBox,score:d.categories[0]?d.categories[0].score:0})}catch(e){}
+    const[fx,fy]=TILES[tileIdx++%4],tw=vw*TS,th=vh*TS,tx=fx*vw,ty=fy*vh;
+    const cw=Math.min(640,Math.round(tw)),ch=Math.max(1,Math.round(cw*th/tw)),r=tw/cw,m=6;
+    if(sc.width!==cw||sc.height!==ch){sc.width=cw;sc.height=ch}
+    try{
+      sctx.drawImage(vid,tx,ty,tw,th,0,0,cw,ch);
+      for(const d of det.detectForVideo(sc,nts()).detections){
+        const b=d.boundingBox;
+        /* bỏ mặt bị cắt dở ở mép trong của ô */
+        if((fx>0&&b.originX<m)||(fy>0&&b.originY<m)||(fx===0&&b.originX+b.width>cw-m)||(fy===0&&b.originY+b.height>ch-m))continue;
+        found.push({originX:tx+b.originX*r,originY:ty+b.originY*r,width:b.width*r,height:b.height*r,score:d.categories[0]?d.categories[0].score:0});
+      }
+    }catch(e){}
+    for(const f of found){
+      let best=null,bi=0;
+      for(const t of tracks){const v=iou(t,f);if(v>bi){bi=v;best=t}}
+      if(best&&bi>.3){best.originX=f.originX;best.originY=f.originY;best.width=f.width;best.height=f.height;best.seen=now;best.hits++;best.score=Math.max(best.score*.8,f.score)}
+      else tracks.push({...f,seen:now,hits:1});
+    }
+    tracks=tracks.filter(t=>now-t.seen<1500);
+    faces=tracks.filter(t=>t.hits>=2||t.score>=.7).map(t=>({originX:t.originX,originY:t.originY,width:t.width,height:t.height}));
+  }
+  vid.onresize=()=>{tracks=[];faces=[]};
   function bracket(x,y,w,h,c,lw,L){ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.lineCap='round';ctx.lineJoin='round';
     [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]].forEach(([a,b,dx,dy])=>{ctx.beginPath();ctx.moveTo(a+dx*L,b);ctx.lineTo(a,b);ctx.lineTo(a,b+dy*L);ctx.stroke()})}
   function frame(now){
@@ -374,7 +420,7 @@ function hostMode(){
       g.addColorStop(0,'#ff5fa200');g.addColorStop(.5,'#ff5fa270');g.addColorStop(1,'#ff5fa200');ctx.fillStyle=g;ctx.fillRect(ox,ly-34,vw*k,68)}
     const box=f=>{const p=.14;return[ox+(f.originX-f.width*p)*k,oy+(f.originY-f.height*p)*k,f.width*(1+2*p)*k,f.height*(1+2*p)*k]};
     if(live){
-      if(now-lastDet>90&&vid.readyState>=2){lastDet=now;try{faces=det.detectForVideo(vid,performance.now()).detections.map(d=>({...d.boundingBox}))}catch(e){}}
+      if(now-lastDet>100&&vid.readyState>=2){lastDet=now;detectCycle(now)}
       const el=now-t0,prog=Math.min(1,el/dur);
       faces.forEach(f=>{const[x,y,w,h]=box(f);bracket(x,y,w,h,'#ffffffcc',3,Math.min(w,h)*.22)});
       if(faces.length){
