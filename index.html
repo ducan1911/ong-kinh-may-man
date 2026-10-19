@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ống kính may mắn</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📷</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--rose:#ec4f93;--deep:#7a1245;--gold:#ffc83d;--ink:#5a1637;--line:#f6bfd4;--bg:#fff3f8}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;min-height:100vh;font-family:'Quicksand',system-ui,sans-serif;color:var(--ink);background:radial-gradient(#fff9 2.5px,transparent 3px) 0 0/34px 34px,radial-gradient(ellipse at 50% 20%,#fff3f8,#ffd9ea);background-attachment:fixed}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.bar{display:flex;align-items:center;gap:14px;padding:14px 22px;background:linear-gradient(90deg,#ff7aa8,#ec4f93 55%,#b388ff);color:#fff;box-shadow:0 6px 20px #ec4f9355}
+.logo{width:46px;height:46px;border-radius:50%;background:#ffffff40;display:flex;align-items:center;justify-content:center;font-size:24px}
+.bar b{font:800 22px 'Baloo 2',sans-serif;display:block;line-height:1.1}.bar small{opacity:.9;font-weight:600}
+.bar .fs{margin-left:auto;background:#ffffff30;border:0;color:#fff;border-radius:12px;padding:8px 14px;font-weight:700}
+main{max-width:1060px;margin:0 auto;padding:22px 16px 40px}
+.grid{display:grid;gap:18px}@media(min-width:820px){.grid{grid-template-columns:1.1fr 1fr}}
+.panel{background:#ffffffd9;border:3px dashed var(--line);border-radius:26px;padding:20px;box-shadow:0 10px 30px #ec4f9322}
+.panel h2{margin:0 0 14px;font:800 20px 'Baloo 2',sans-serif;color:var(--rose)}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-weight:600}
+input[type=number]{width:96px;padding:10px 12px;font:700 18px inherit;font-family:inherit;border:2px solid var(--line);border-radius:12px;color:var(--ink)}
+.opts{display:grid;gap:10px;flex:1;min-width:240px}@media(min-width:500px){.opts{grid-template-columns:1fr 1fr}}
+.opt{display:block;text-align:left;background:#fff;border:2px solid var(--line);border-radius:16px;padding:12px 14px;font-size:14px;color:#8a4a68;line-height:1.4}
+.opt b{display:block;color:var(--ink);font-size:15px;margin-bottom:3px}
+.opt.on{border-color:var(--rose);background:#fff0f6;box-shadow:0 0 0 3px #ec4f9322}
+.info{background:#ffe9f2;border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.5}
+.warn{background:#fff3cd;color:#6b4a00;border-radius:14px;padding:10px 14px;font-size:14px;margin-bottom:14px}
+select{padding:10px 12px;font:700 15px inherit;font-family:inherit;border:2px solid var(--line);border-radius:12px;color:var(--ink);background:#fff;max-width:100%}
+.btn{border:0;border-radius:99px;padding:12px 22px;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,#ff8fbf,#ff5fa2);box-shadow:0 4px 0 #e0457f}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #e0457f}
+.btn.alt{background:#fff;color:var(--rose);border:2px solid #ff8fbf;box-shadow:none}
+.btn.big{width:100%;font-size:20px;padding:16px;margin-top:18px;font-family:'Baloo 2',sans-serif;font-weight:800}
+.hint{font-size:13px;opacity:.75;margin:8px 0 0}
+#pair{text-align:center;padding:40px 16px}
+#pair h2{font:800 32px 'Baloo 2',sans-serif;color:var(--rose);margin:0 0 6px}
+#qr{display:inline-block;background:#fff;padding:16px;border-radius:24px;border:4px solid var(--gold);box-shadow:0 10px 30px #ec4f9340;margin:18px 0}
+#qr img{display:block}
+#plink{font-size:12px;word-break:break-all;opacity:.7;max-width:420px;margin:0 auto 14px}
+#scan{position:fixed;inset:0;background:#1a0510;z-index:10}
+#cv{width:100%;height:100%;display:block}
+.hud{position:absolute;top:0;left:0;right:0;padding:14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.hud>*{pointer-events:auto}
+#cd{min-width:84px;text-align:center;font:800 44px/1 'Baloo 2',sans-serif;color:#fff;background:#ec4f93cc;border:3px solid var(--gold);border-radius:99px;padding:8px 22px;box-shadow:0 0 24px #ec4f93aa}
+#msg{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);background:#000a;color:#fff;font-weight:700;padding:10px 20px;border-radius:99px;text-align:center;max-width:90%}
+#msg:empty{display:none}
+#res{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#3a0a1fcc;backdrop-filter:blur(6px);padding:16px;overflow:auto}
+#res.on{display:flex}
+.rbox{position:relative;z-index:2;margin:auto;text-align:center;background:radial-gradient(#fffa 2px,transparent 3px) 0 0/22px 22px,linear-gradient(160deg,#fffdf8,#ffe0ee 60%,#e8dcff);border:5px solid #fff;border-radius:36px;box-shadow:0 0 0 6px #ffb3d1,0 0 80px #ff8fbfaa;padding:24px 30px 26px;animation:pop .7s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{from{transform:scale(.4) rotate(-5deg);opacity:0}to{transform:none;opacity:1}}
+.deco{font-size:28px;letter-spacing:.2em;animation:bob 1.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.rbox h2{margin:0;font:800 clamp(48px,9vw,96px)/1.05 'Baloo 2',sans-serif;background:linear-gradient(90deg,#ff5fa2,#ffb703,#b388ff,#4dd6a4,#ff5fa2);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.4s linear infinite}
+@keyframes shine{to{background-position:-300% 0}}
+#rimg{width:min(52vh,70vw,520px);aspect-ratio:1;object-fit:cover;border-radius:50%;border:8px solid #fff;margin:14px auto;display:block;box-shadow:0 0 0 9px #ffb3d1,0 0 0 16px #fff,0 0 50px 12px #ff8fbf88;animation:zoom .8s .15s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes zoom{from{transform:scale(0) rotate(-25deg)}to{transform:none}}
+.rbox p{font:800 clamp(20px,3vw,30px) 'Baloo 2',sans-serif;color:var(--rose);margin:8px 0 14px}
+.acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#cf{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+#phone{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 16px;text-align:center}
+#phone h1{font:800 30px 'Baloo 2',sans-serif;color:var(--rose);margin:0}
+#pv{width:100%;max-width:520px;aspect-ratio:3/4;object-fit:cover;background:#2a0a1c;border-radius:26px;border:4px solid #fff;box-shadow:0 0 0 5px #ffb3d1}
+#pst{background:#fff;border:2px solid var(--line);border-radius:99px;padding:10px 18px;font-weight:700}
+@media(prefers-reduced-motion:reduce){.rbox,.deco,.rbox h2,#rimg{animation:none}}
+#pair{padding:30px 16px;text-align:center}
+.pbox{max-width:520px;margin:0 auto;background:#ffffffe0;border:3px dashed var(--line);border-radius:28px;padding:26px 22px;box-shadow:0 10px 30px #ec4f9322}
+#pair h2{font:800 28px 'Baloo 2',sans-serif;color:var(--rose);margin:0 0 6px}
+.psub{opacity:.8;margin:0 0 16px}
+.pnote{display:flex;gap:12px;text-align:left;background:#fff3cd;border:1.5px solid #ffd666;color:#6b4a00;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.5}
+.pnote span{font-size:22px}
+#qr{margin:18px 0}
+.plinkrow{display:flex;align-items:center;gap:10px;background:#fff0f6;border:2px solid var(--line);border-radius:14px;padding:8px 8px 8px 14px;margin:0 0 16px}
+#plink{flex:1;min-width:0;font-size:13px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:none;margin:0;opacity:1;word-break:normal}
+.plinkrow .btn{padding:8px 16px;font-size:14px;box-shadow:none}
+.wait{display:flex;justify-content:center;align-items:center;gap:10px;font-weight:600;margin-bottom:16px}
+.spin{width:18px;height:18px;border:3px solid var(--line);border-top-color:var(--rose);border-radius:50%;animation:spn .9s linear infinite}
+@keyframes spn{to{transform:rotate(360deg)}}
+body{position:relative}
+.float{position:fixed;inset:0;pointer-events:none;z-index:0}
+.float span{position:absolute;font-size:30px;opacity:.55;animation:drift 8s ease-in-out infinite}
+@keyframes drift{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-20px) rotate(8deg)}}
+#host>main,#host>header,#pair{position:relative;z-index:1}
+.bar.hero{display:block;text-align:center;background:none;box-shadow:none;color:var(--ink);padding:30px 16px 6px}
+.bar.hero .fs{position:absolute;top:16px;right:18px;background:#fff;color:var(--rose);border:2px solid #ffc2dd;box-shadow:0 3px 0 #ffc2dd}
+.lens{position:relative;width:104px;height:104px;margin:0 auto 12px;border-radius:50%;background:conic-gradient(#ffc83d,#ff8fbf,#b388ff,#ff8fbf,#ffc83d);box-shadow:0 0 0 6px #ffffffb0,0 12px 28px #ec4f9366;animation:lensf 4s ease-in-out infinite}
+.lens i{position:absolute;border-radius:50%}
+.lens i:nth-child(1){inset:10px;background:radial-gradient(circle at 50% 50%,#3a0a24,#1a0510);box-shadow:inset 0 0 0 4px #ffffff55}
+.lens i:nth-child(2){inset:30px;background:radial-gradient(circle at 40% 40%,#ff9ec4,#ec4f93 55%,#7a1245);box-shadow:0 0 18px #ff5fa2;animation:iris 2.6s ease-in-out infinite}
+.lens i:nth-child(3){left:26px;top:22px;width:22px;height:12px;background:#ffffffd9;transform:rotate(-30deg)}
+@keyframes lensf{50%{transform:translateY(-6px) rotate(4deg)}}
+@keyframes iris{50%{transform:scale(.82)}}
+.bar.hero h1{margin:0;font:800 clamp(40px,7vw,68px)/1.05 'Baloo 2',sans-serif;color:var(--rose);text-shadow:0 3px 0 #fff,0 6px 0 #ffc2dd,0 0 30px #ff9ec488}
+.tag{display:inline-block;margin:10px 0 0;padding:6px 20px;font-weight:700;background:#fff;border:2px solid var(--gold);border-radius:99px;box-shadow:0 4px 0 #ffe29a}
+main{max-width:980px}
+.panel{background:#ffffffe6;border:2px solid #fff;box-shadow:0 0 0 3px #ffd0e2,0 16px 36px #ec4f9333;border-radius:28px;padding:22px}
+.panel h2{display:flex;align-items:center;gap:10px;font-size:22px}
+.pi{width:40px;height:40px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;background:linear-gradient(135deg,#ffe0ee,#e8dcff)}
+.field{margin-bottom:18px}
+.lbl{font-weight:700;margin-bottom:8px}
+.mut{font-size:13px;opacity:.7;margin-top:6px}
+.stepper{display:inline-flex;align-items:center;gap:6px;background:#fff0f6;border:2px solid var(--line);border-radius:99px;padding:5px 14px 5px 6px}
+.stepper button{width:38px;height:38px;border:0;border-radius:50%;background:linear-gradient(135deg,#ff8fbf,#ff5fa2);color:#fff;font:800 22px/1 'Baloo 2',sans-serif;box-shadow:0 3px 0 #e0457f}
+.stepper button:active{transform:translateY(2px);box-shadow:none}
+.stepper input{width:64px;text-align:center;border:0;background:transparent;font:800 26px 'Baloo 2',sans-serif;color:var(--rose);padding:0;-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepper em{font-style:normal;font-weight:700}
+.opts{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:520px){.opts{grid-template-columns:1fr 1fr}}
+.opt{position:relative;padding:16px 14px;border-radius:20px;transition:transform .15s,box-shadow .15s}
+.opt:hover{transform:translateY(-2px)}
+.opt .oi{display:flex;width:46px;height:46px;border-radius:14px;align-items:center;justify-content:center;font-size:24px;background:#ffe9f2;margin-bottom:8px}
+.opt.on{background:linear-gradient(160deg,#fff,#ffe9f2);border-color:var(--rose);box-shadow:0 0 0 4px #ec4f9328,0 8px 18px #ec4f9333}
+.opt.on::after{content:"✓";position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:50%;background:var(--rose);color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+.info{background:linear-gradient(135deg,#ffe9f2,#efe6ff);border-radius:16px}
+select{width:100%;padding:12px 14px;border-radius:14px}
+#prev{width:100%;height:40px;margin-top:10px}
+.up{display:inline-block}
+.how{display:grid;gap:10px;margin-top:6px}
+.how div{display:flex;align-items:center;gap:12px;background:#fff7fb;border:2px dashed var(--line);border-radius:16px;padding:10px 12px;font-weight:600}
+.how b{flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#ffc83d,#ff9ec4);color:#fff;font:800 16px 'Baloo 2',sans-serif}
+.btn.big{font-size:24px;padding:18px;border-radius:99px;box-shadow:0 6px 0 #e0457f,0 14px 30px #ec4f9355;animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 6px 0 #e0457f,0 0 0 10px #ff8fbf33,0 14px 30px #ec4f9355}}
+#scan::before{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 180px #1a0510d9;z-index:1}
+.hud{z-index:2}#msg{z-index:2}#res{z-index:3}
+.hud .btn.alt{background:#1a0510b3;color:#fff;border:2px solid #ffffff55;backdrop-filter:blur(4px)}
+#cd{font-size:52px;padding:6px 28px;background:linear-gradient(135deg,#ff8fbf,#ec4f93);border:4px solid #fff;box-shadow:0 0 0 4px #ffc83d,0 0 30px #ec4f93aa}
+@media(prefers-reduced-motion:reduce){.float span,.lens,.lens i,.btn.big{animation:none}}
+</style>
+</head>
+<body>
+
+<div id="phone" hidden>
+  <h1>📷 Camera điện thoại</h1>
+  <video id="pv" autoplay muted playsinline></video>
+  <div id="pst">Bấm "Bật camera" để bắt đầu</div>
+  <button class="btn" id="pgo">Bật camera</button>
+  <button class="btn alt" id="pflip" hidden>Đổi camera trước/sau</button>
+  <button class="btn alt" id="pre" hidden>Kết nối lại</button>
+  <p class="hint">Giữ màn hình sáng và hướng camera về phía mọi người.</p>
+</div>
+
+<div id="host">
+  <div class="float" aria-hidden="true"><span style="left:6%;top:18%">🌸</span><span style="left:90%;top:14%;animation-delay:-2s">💖</span><span style="left:12%;top:62%;animation-delay:-4s">⭐</span><span style="left:86%;top:58%;animation-delay:-1s">🎀</span><span style="left:4%;top:86%;animation-delay:-5s">🌷</span><span style="left:94%;top:84%;animation-delay:-3s">✨</span><span style="left:48%;top:6%;animation-delay:-6s">🍓</span></div>
+  <header class="bar hero">
+    <button class="fs" id="fs" title="Toàn màn hình">⛶ Toàn màn hình</button>
+    <div class="lens" aria-hidden="true"><i></i><i></i><i></i></div>
+    <h1>Ống kính may mắn</h1>
+    <p class="tag">Chọn 1 người ngẫu nhiên ✨</p>
+  </header>
+
+  <main id="setup">
+    <div class="warn" id="warn" hidden>Trang cần chạy qua HTTPS (ví dụ GitHub Pages) hoặc localhost thì mới mở được camera.</div>
+    <div class="grid">
+      <section class="panel">
+        <h2><span class="pi">⚙️</span>Cài đặt trò chơi</h2>
+        <div class="field"><div class="lbl">⏱️ Thời gian quét</div>
+          <div class="stepper"><button type="button" id="sm" aria-label="Giảm 1 giây">−</button><input type="number" id="secs" min="3" max="60" value="5" aria-label="Thời gian quét (giây)"><button type="button" id="sp" aria-label="Tăng 1 giây">+</button><em>giây</em></div>
+          <div class="mut">Tối thiểu 3 giây</div></div>
+        <div class="field"><div class="lbl">📹 Nguồn camera</div>
+          <div class="opts">
+            <button class="opt" id="o-pc" type="button"><span class="oi">💻</span><b>Camera máy tính</b>Dùng webcam của máy đang mở trang này</button>
+            <button class="opt" id="o-phone" type="button"><span class="oi">📱</span><b>Camera điện thoại</b>Quét mã QR để điện thoại làm camera, kết quả hiện ngay trên máy này</button>
+          </div></div>
+        <div class="info" id="info"></div>
+      </section>
+      <section class="panel">
+        <h2><span class="pi">🎵</span>Nhạc nền</h2>
+        <div class="field"><div class="lbl">Chọn nhạc</div>
+          <select id="music"><option value="shuffle">🔀 Tiếng xào trộn (mặc định)</option><option value="none">🔇 Không phát nhạc</option></select>
+          <audio id="prev" controls hidden></audio></div>
+        <div class="field"><label class="btn alt up">⬆️ Tải nhạc lên<input type="file" id="mfile" accept="audio/*" hidden></label>
+          <p class="hint">Phát trong lúc camera quét, tự tắt khi đã chọn được người.</p></div>
+        <div class="how">
+          <div><b>1</b><span>Chọn camera rồi bấm quét</span></div>
+          <div><b>2</b><span>Ống kính nhảy qua từng khuôn mặt</span></div>
+          <div><b>3</b><span>Dừng lại ở người may mắn 🎉</span></div>
+        </div>
+      </section>
+    </div>
+    <button class="btn big" id="start">📷 Bắt đầu quét</button>
+  </main>
+
+  <section id="pair" hidden>
+    <div class="pbox">
+      <h2>📱 Dùng điện thoại quét mã QR</h2>
+      <p class="psub">Mở camera điện thoại và quét mã bên dưới. Điện thoại sẽ trở thành webcam cho máy tính.</p>
+      <div class="pnote"><span>📶</span><div><b>Nên dùng chung Wi-Fi với máy tính.</b> Nếu đang dùng 4G/5G mà không kết nối được, hãy tắt dữ liệu di động, nối vào Wi-Fi rồi quét lại.</div></div>
+      <div id="qr"></div>
+      <div class="plinkrow"><span id="plink"></span><button class="btn" id="copy">Copy</button></div>
+      <div class="wait"><i class="spin"></i><span id="pairmsg">Đang tạo mã…</span></div>
+      <button class="btn alt" id="pcancel">Hủy</button>
+    </div>
+  </section>
+
+  <section id="scan" hidden>
+    <canvas id="cv"></canvas>
+    <div class="hud"><button class="btn alt" id="sback">← Cài đặt</button><div id="cd">5</div><button class="btn alt" id="sfs">⛶</button></div>
+    <div id="msg"></div>
+    <div id="res">
+      <canvas id="cf"></canvas>
+      <div class="rbox">
+        <div class="deco">🎀 🌸 💖 🌸 🎀</div>
+        <h2>Chúc mừng!</h2>
+        <img id="rimg" alt="Người được chọn">
+        <p>Bạn là người may mắn được chọn 💖</p>
+        <div class="acts"><button class="btn" id="again">🔄 Quét lại</button><button class="btn alt" id="back2">Cài đặt</button></div>
+      </div>
+    </div>
+  </section>
+</div>
+<video id="vid" playsinline muted autoplay style="position:fixed;width:2px;height:2px;opacity:0;pointer-events:none"></video>
+
+<script>
+const $=id=>document.getElementById(id);
+const roomId=new URLSearchParams(location.search).get('sid');
+const SAFE=window.isSecureContext;
+
+/* ============ ĐIỆN THOẠI ============ */
+function phoneMode(hostId){
+  $('host').hidden=true;$('phone').hidden=false;
+  let facing='environment',stream,peer,call;
+  const st=t=>$('pst').textContent=t;
+  async function cam(){
+    try{
+      if(stream)stream.getTracks().forEach(t=>t.stop());
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:false});
+    }catch(e){st('Không mở được camera: '+e.message);return}
+    $('pv').srcObject=stream;$('pgo').hidden=true;$('pflip').hidden=false;$('pre').hidden=false;
+    try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}
+    connect();
+  }
+  function connect(){
+    if(!peer||peer.destroyed){
+      peer=new Peer();
+      peer.on('open',dial);
+      peer.on('error',e=>st(e.type==='peer-unavailable'?'Không tìm thấy máy tính. Hãy quét lại mã QR.':'Lỗi kết nối: '+e.type));
+    }else if(peer.open)dial();
+  }
+  function dial(){
+    if(call)call.close();
+    call=peer.call('ongkinh-'+hostId,stream);
+    st('Đã kết nối ✓ Hướng camera về mọi người');
+    call.on('close',()=>st('Mất kết nối. Bấm "Kết nối lại".'));
+  }
+  $('pgo').onclick=cam;
+  $('pflip').onclick=()=>{facing=facing==='environment'?'user':'environment';cam()};
+  $('pre').onclick=()=>{if(peer&&!peer.destroyed)peer.destroy();connect()};
+}
+
+/* ============ MÁY TÍNH (TRÌNH CHIẾU) ============ */
+function hostMode(){
+  const CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/';
+  const MODEL='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+  const vid=$('vid'),cv=$('cv'),ctx=cv.getContext('2d');
+  let src='pc',secs=5,state='idle',screen='setup',det,pcStream,remote,phoneOK=false,hostPeer,curCall;
+  let faces=[],focus=0,lastHop=0,lastDet=0,t0=0,dur=5000,snap,lockFace,lockT=0,raf,fileURL,ac,mt,aud,lastCd=-1;
+  if(!SAFE)$('warn').hidden=false;
+  try{const s=JSON.parse(localStorage.getItem('okmm')||'{}');if(s.secs)$('secs').value=s.secs;if(s.src)src=s.src}catch(e){}
+
+  const show=id=>{screen=id;['setup','pair','scan'].forEach(i=>$(i).hidden=i!==id);$('host').querySelector('.bar').hidden=id==='scan'};
+  function setSrc(v){src=v;$('o-pc').classList.toggle('on',v==='pc');$('o-phone').classList.toggle('on',v==='phone');
+    $('info').textContent=v==='phone'?'Sau khi bấm "Bắt đầu quét", màn hình sẽ hiện mã QR — dùng điện thoại quét mã để làm camera. Kết quả sẽ hiển thị ngay tại đây.':'Sau khi bấm "Bắt đầu quét", trình duyệt sẽ xin quyền mở webcam của máy này.'}
+  setSrc(src);
+  $('o-pc').onclick=()=>setSrc('pc');$('o-phone').onclick=()=>setSrc('phone');
+  const fs=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
+  $('fs').onclick=fs;$('sfs').onclick=fs;
+
+  $('sm').onclick=()=>{$('secs').value=Math.max(3,(parseInt($('secs').value)||5)-1)};
+  $('sp').onclick=()=>{$('secs').value=Math.min(60,(parseInt($('secs').value)||5)+1)};
+  /* nhạc */
+  $('mfile').onchange=e=>{const f=e.target.files[0];if(!f)return;fileURL=URL.createObjectURL(f);
+    let o=[...$('music').options].find(x=>x.value==='file');if(!o){o=new Option('','file');$('music').add(o)}
+    o.text='🎶 '+f.name;$('music').value='file';$('prev').src=fileURL;$('prev').hidden=false};
+  $('music').onchange=()=>{$('prev').hidden=$('music').value!=='file'};
+  function startMusic(){
+    stopMusic();const m=$('music').value;if(m==='none')return;
+    if(m==='file'&&fileURL){aud=new Audio(fileURL);aud.loop=true;aud.play().catch(()=>{});return}
+    if(!ac)return;if(ac.state==='suspended')ac.resume();
+    const sc=[0,2,4,7,9,12,14,16];
+    mt=setInterval(()=>{const o=ac.createOscillator(),g=ac.createGain();o.type='triangle';
+      o.frequency.value=392*Math.pow(2,sc[Math.floor(Math.random()*sc.length)]/12);
+      g.gain.setValueAtTime(.12,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.18);
+      o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+.2)},130);
+  }
+  function stopMusic(){clearInterval(mt);if(aud){aud.pause();aud=null}}
+  function chime(){if(!ac||$('music').value==='none')return;[660,880,1100,1320].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;
+    const s=ac.currentTime+i*.12;g.gain.setValueAtTime(.18,s);g.gain.exponentialRampToValueAtTime(.001,s+.6);o.connect(g);g.connect(ac.destination);o.start(s);o.stop(s+.6)})}
+
+  /* điện thoại ghép đôi */
+  function initPeer(){
+    return new Promise(res=>{
+      if(hostPeer&&!hostPeer.destroyed&&hostPeer.open)return res();
+      hostPeer=new Peer('ongkinh-'+Math.random().toString(36).slice(2,8).toUpperCase());
+      hostPeer.on('open',res);
+      hostPeer.on('error',e=>{$('pairmsg').textContent='Lỗi kết nối: '+e.type});
+      hostPeer.on('call',call=>{
+        curCall=call;call.answer();
+        call.on('stream',s=>{remote=s;phoneOK=true;if(src==='phone'){vid.srcObject=s;vid.play().catch(()=>{})}if(screen==='pair')startScan()});
+        call.on('close',()=>{if(call===curCall){phoneOK=false;if(state==='scan')msg('Điện thoại mất kết nối')}});
+      });
+    });
+  }
+  async function openPair(){
+    show('pair');$('pairmsg').textContent='Đang tạo mã…';$('qr').innerHTML='';
+    await initPeer();
+    const url=location.origin+location.pathname+'?sid='+hostPeer.id.replace('ongkinh-','');
+    new QRCode($('qr'),{text:url,width:280,height:280,colorDark:'#000000',colorLight:'#ffffff'});
+    $('plink').textContent=url;$('pairmsg').textContent='Đang chờ điện thoại kết nối…';
+  }
+
+  /* nhận diện */
+  async function loadDet(){
+    if(det)return;msg('Đang tải mô hình nhận diện khuôn mặt…');
+    const V=await import(CDN+'vision_bundle.mjs');
+    const fsr=await V.FilesetResolver.forVisionTasks(CDN+'wasm');
+    const opt=d=>({baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',minDetectionConfidence:.5});
+    try{det=await V.FaceDetector.createFromOptions(fsr,opt('GPU'))}catch(e){det=await V.FaceDetector.createFromOptions(fsr,opt('CPU'))}
+  }
+  const msg=t=>$('msg').textContent=t;
+
+  async function startScan(){
+    show('scan');$('res').classList.remove('on');state='idle';cancelAnimationFrame(raf);
+    try{
+      if(src==='pc'){
+        if(!pcStream)pcStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
+        vid.srcObject=pcStream;
+      }else vid.srcObject=remote;
+      await vid.play().catch(()=>{});
+      await loadDet();
+      msg('Đang chờ hình từ camera…');
+      for(let i=0;i<80&&!vid.videoWidth;i++)await new Promise(r=>setTimeout(r,100));
+      if(!vid.videoWidth)throw new Error('Không nhận được hình từ camera');
+    }catch(e){alert('Không thể bắt đầu: '+e.message);goSetup();return}
+    msg('');faces=[];lastCd=-1;dur=secs*1000;t0=performance.now();state='scan';startMusic();raf=requestAnimationFrame(frame);
+  }
+  function bracket(x,y,w,h,c,lw,L){ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.lineCap='round';ctx.lineJoin='round';
+    [[x,y,1,1],[x+w,y,-1,1],[x,y+h,1,-1],[x+w,y+h,-1,-1]].forEach(([a,b,dx,dy])=>{ctx.beginPath();ctx.moveTo(a+dx*L,b);ctx.lineTo(a,b);ctx.lineTo(a,b+dy*L);ctx.stroke()})}
+  function frame(now){
+    if(state==='idle'||state==='result')return;
+    raf=requestAnimationFrame(frame);
+    const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+    if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#1a0510';ctx.fillRect(0,0,W,H);
+    const live=state==='scan',S=live?vid:snap,vw=live?vid.videoWidth:snap.width,vh=live?vid.videoHeight:snap.height;
+    if(!vw)return;
+    const k=Math.min(W/vw,H/vh),ox=(W-vw*k)/2,oy=(H-vh*k)/2;
+    ctx.drawImage(S,ox,oy,vw*k,vh*k);
+    if(live){const ly=oy+((now/1400)%1)*vh*k,g=ctx.createLinearGradient(0,ly-34,0,ly+34);
+      g.addColorStop(0,'#ff5fa200');g.addColorStop(.5,'#ff5fa270');g.addColorStop(1,'#ff5fa200');ctx.fillStyle=g;ctx.fillRect(ox,ly-34,vw*k,68)}
+    const box=f=>{const p=.14;return[ox+(f.originX-f.width*p)*k,oy+(f.originY-f.height*p)*k,f.width*(1+2*p)*k,f.height*(1+2*p)*k]};
+    if(live){
+      if(now-lastDet>90&&vid.readyState>=2){lastDet=now;try{faces=det.detectForVideo(vid,performance.now()).detections.map(d=>({...d.boundingBox}))}catch(e){}}
+      const el=now-t0,prog=Math.min(1,el/dur);
+      faces.forEach(f=>{const[x,y,w,h]=box(f);bracket(x,y,w,h,'#ffffffcc',3,Math.min(w,h)*.22)});
+      if(faces.length){
+        if(now-lastHop>110+560*Math.pow(prog,3)){lastHop=now;focus=Math.floor(Math.random()*faces.length)}
+        const[x,y,w,h]=box(faces[focus%faces.length]);
+        ctx.fillStyle='#ffc83d33';ctx.fillRect(x,y,w,h);ctx.shadowColor='#ffc83d';ctx.shadowBlur=22;bracket(x,y,w,h,'#ffc83d',6,Math.min(w,h)*.3);ctx.shadowBlur=0;
+        if(el>=dur)msg('');
+      }
+      const c=Math.max(0,Math.ceil((dur-el)/1000));
+      if(c!==lastCd){lastCd=c;$('cd').textContent=c>0?c:'…'}
+      if(el>=dur){
+        if(faces.length)lock(now);else msg('Chưa thấy khuôn mặt nào, hãy hướng camera vào mọi người');
+      }
+    }else{
+      ctx.fillStyle='rgba(26,5,16,.6)';ctx.fillRect(0,0,W,H);
+      const[x,y,w,h]=box(lockFace);
+      ctx.save();ctx.beginPath();ctx.rect(x,y,w,h);ctx.clip();ctx.drawImage(S,ox,oy,vw*k,vh*k);ctx.restore();
+      const pu=.5+.5*Math.sin((now-lockT)/90);ctx.shadowColor='#ff5fa2';ctx.shadowBlur=20+20*pu;
+      bracket(x,y,w,h,'#ff5fa2',8,Math.min(w,h)*.35);ctx.shadowBlur=0;
+      if(now-lockT>1200)showResult();
+    }
+  }
+  function lock(now){
+    snap=document.createElement('canvas');snap.width=vid.videoWidth;snap.height=vid.videoHeight;
+    snap.getContext('2d').drawImage(vid,0,0);
+    lockFace=faces[Math.floor(Math.random()*faces.length)];lockT=now;state='lock';stopMusic();chime();msg('');
+  }
+  function showResult(){
+    state='result';cancelAnimationFrame(raf);
+    const f=lockFace,cx=f.originX+f.width/2,cy=f.originY+f.height/2;
+    const size=Math.min(Math.max(f.width,f.height)*1.9,snap.width,snap.height);
+    const x=Math.min(Math.max(cx-size/2,0),snap.width-size),y=Math.min(Math.max(cy-size/2,0),snap.height-size);
+    const o=document.createElement('canvas');o.width=o.height=640;o.getContext('2d').drawImage(snap,x,y,size,size,0,0,640,640);
+    $('rimg').src=o.toDataURL('image/jpeg',.92);
+    $('res').classList.add('on');confetti();
+  }
+  function goSetup(){
+    state='idle';cancelAnimationFrame(raf);stopMusic();$('res').classList.remove('on');msg('');
+    if(pcStream){pcStream.getTracks().forEach(t=>t.stop());pcStream=null}
+    show('setup');
+  }
+
+  /* pháo giấy */
+  function confetti(){
+    const c=$('cf'),g=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;
+    const E=['💖','⭐','🌸','🎀','✨'],C=['#ff6fa8','#ffb3d1','#ffd36e','#b8a4ff','#8fe3c0','#fff'],P=[];
+    const mk=(x,y,vx,vy)=>P.push({x,y,vx,vy,w:10+Math.random()*12,r:Math.random()*6,vr:(Math.random()-.5)*.35,c:C[Math.floor(Math.random()*C.length)],e:Math.random()<.4?E[Math.floor(Math.random()*E.length)]:null,l:220+Math.random()*80});
+    const W=c.width,H=c.height;
+    for(let i=0;i<110;i++){mk(0,H,5+Math.random()*11,-(9+Math.random()*14));mk(W,H,-(5+Math.random()*11),-(9+Math.random()*14))}
+    let n=0;const tm=setInterval(()=>{for(let i=0;i<6;i++)mk(Math.random()*W,-20,(Math.random()-.5)*3,2+Math.random()*3);if(++n>40)clearInterval(tm)},60);
+    (function loop(){
+      g.clearRect(0,0,W,H);
+      for(let i=P.length-1;i>=0;i--){const p=P[i];p.vy=Math.min(p.vy+.24,6);p.vx*=.985;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.l--;
+        if(p.l<=0||p.y>H+40){P.splice(i,1);continue}
+        g.globalAlpha=Math.min(1,p.l/40);g.save();g.translate(p.x,p.y);g.rotate(p.r);
+        if(p.e){g.font=p.w*2.2+'px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(p.e,0,0)}
+        else{g.scale(1,Math.cos(p.r*3));g.fillStyle=p.c;g.fillRect(-p.w/2,-p.w/4,p.w,p.w/2)}
+        g.restore()}
+      if(P.length||n<=40)requestAnimationFrame(loop);else g.clearRect(0,0,W,H);
+    })();
+  }
+
+  $('start').onclick=async()=>{
+    secs=Math.max(3,Math.min(60,parseInt($('secs').value)||5));$('secs').value=secs;
+    try{localStorage.setItem('okmm',JSON.stringify({secs,src}))}catch(e){}
+    try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();ac.resume()}catch(e){}
+    if(!SAFE){alert('Cần mở trang bằng HTTPS (GitHub Pages) hoặc localhost để dùng camera.');return}
+    if(src==='phone'&&!phoneOK){await openPair();return}
+    startScan();
+  };
+  $('pcancel').onclick=()=>show('setup');
+  $('copy').onclick=async()=>{const t=$('plink').textContent;
+    try{await navigator.clipboard.writeText(t)}catch(e){const r=document.createRange();r.selectNode($('plink'));getSelection().removeAllRanges();getSelection().addRange(r);document.execCommand('copy')}
+    $('copy').textContent='Đã chép ✓';setTimeout(()=>$('copy').textContent='Copy',1500)};
+  $('sback').onclick=goSetup;$('back2').onclick=goSetup;
+  $('again').onclick=()=>{try{ac&&ac.resume()}catch(e){}startScan()};
+}
+
+roomId?phoneMode(roomId):hostMode();
+</script>
+</body>
+</html>
