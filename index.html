@@ -51,16 +51,19 @@ select{padding:10px 12px;font:700 15px inherit;font-family:inherit;border:2px so
 #res{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#3a0a1fe6;padding:16px;overflow:auto}
 #res.on{display:flex}
 .rbox{position:relative;z-index:2;margin:auto;text-align:center;background:radial-gradient(#fffa 2px,transparent 3px) 0 0/22px 22px,linear-gradient(160deg,#fffdf8,#ffe0ee 60%,#e8dcff);border:5px solid #fff;border-radius:36px;box-shadow:0 0 0 6px #ffb3d1,0 8px 30px #ff8fbf66;padding:24px 30px 26px;animation:pop .7s cubic-bezier(.2,1.5,.4,1)}
-@keyframes pop{from{transform:scale(.4) rotate(-5deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
 .deco{font-size:28px;letter-spacing:.2em}
 @keyframes bob{50%{transform:translateY(-6px)}}
 .rbox h2{margin:0;font:800 clamp(48px,9vw,96px)/1.05 'Baloo 2',sans-serif;background:linear-gradient(90deg,#ff5fa2,#ffb703,#b388ff,#4dd6a4,#ff5fa2);-webkit-background-clip:text;background-clip:text;color:transparent}
 @keyframes shine{to{background-position:-300% 0}}
 #rimg{width:min(52vh,70vw,520px);aspect-ratio:1;object-fit:cover;border-radius:50%;border:8px solid #fff;margin:14px auto;display:block;box-shadow:0 0 0 9px #ffb3d1,0 0 0 16px #fff;animation:zoom .8s .15s cubic-bezier(.2,1.6,.4,1) both}
-@keyframes zoom{from{transform:scale(0) rotate(-25deg)}to{transform:none}}
+@keyframes zoom{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
 .rbox p{font:800 clamp(20px,3vw,30px) 'Baloo 2',sans-serif;color:var(--rose);margin:8px 0 14px}
 .acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-#cf{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+#cf{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3}
+#cf span{position:absolute;bottom:-40px;font-size:30px;line-height:1;will-change:transform,opacity;animation:rise 2.6s ease-out forwards}
+@keyframes rise{from{transform:translate3d(0,0,0);opacity:1}to{transform:translate3d(var(--dx),-80vh,0);opacity:0}}
+@media(prefers-reduced-motion:reduce){#cf{display:none}}
 #phone{min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 16px;text-align:center}
 #phone h1{font:800 30px 'Baloo 2',sans-serif;color:var(--rose);margin:0}
 #pv{width:100%;max-width:520px;aspect-ratio:3/4;object-fit:cover;background:#2a0a1c;border-radius:26px;border:4px solid #fff;box-shadow:0 0 0 5px #ffb3d1}
@@ -202,7 +205,7 @@ body.scanning .float{display:none}
     <div class="hud"><button class="btn alt" id="sback">← Cài đặt</button><div id="cd">5</div><button class="btn alt" id="sfs">⛶</button></div>
     <div id="msg"></div>
     <div id="res">
-      <canvas id="cf"></canvas>
+      <div id="cf" aria-hidden="true"></div>
       <div class="rbox">
         <div class="deco">🎀 🌸 💖 🌸 🎀</div>
         <h2>Chúc mừng!</h2>
@@ -262,7 +265,7 @@ function hostMode(){
   const MODEL='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
   const vid=$('vid'),cv=$('cv'),ctx=cv.getContext('2d');
   let src='pc',secs=5,state='idle',screen='setup',det,pcStream,remote,phoneOK=false,hostPeer,curCall;
-  let cfRaf,faces=[],focus=0,lastHop=0,lastDet=0,t0=0,dur=5000,snap,lockFace,lockT=0,raf,fileURL,ac,mt,aud,lastCd=-1;
+  let faces=[],focus=0,lastHop=0,lastDet=0,t0=0,dur=5000,snap,lockFace,lockT=0,raf,fileURL,ac,mt,aud,lastCd=-1;
   if(!SAFE)$('warn').hidden=false;
   try{const s=JSON.parse(localStorage.getItem('okmm')||'{}');if(s.secs)$('secs').value=s.secs;if(s.src)src=s.src}catch(e){}
 
@@ -341,7 +344,7 @@ function hostMode(){
   const msg=t=>$('msg').textContent=t;
 
   async function startScan(){
-    show('scan');$('res').classList.remove('on');state='idle';cancelAnimationFrame(raf);
+    show('scan');$('res').classList.remove('on');$('cf').textContent='';state='idle';cancelAnimationFrame(raf);
     try{
       if(src==='pc'){
         if(!pcStream)pcStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
@@ -409,26 +412,26 @@ function hostMode(){
     $('res').classList.add('on');confetti();
   }
   function goSetup(){
-    state='idle';cancelAnimationFrame(raf);stopMusic();$('res').classList.remove('on');msg('');
+    state='idle';cancelAnimationFrame(raf);stopMusic();$('res').classList.remove('on');$('cf').textContent='';msg('');
     if(pcStream){pcStream.getTracks().forEach(t=>t.stop());pcStream=null}
     show('setup');
   }
 
   /* pháo giấy nhẹ */
+  /* hiệu ứng chúc mừng đơn giản: vài biểu tượng bay lên bằng CSS (không dùng canvas/JS mỗi khung hình) */
+  let cfTimer;
   function confetti(){
-    cancelAnimationFrame(cfRaf);
-    const c=$('cf'),g=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;
-    const W=c.width,H=c.height,C=['#ff6fa8','#ffb3d1','#ffd36e','#b8a4ff','#8fe3c0'],P=[];
-    const sp=['💖','🌸','⭐','🎀'].map(e=>{const o=document.createElement('canvas');o.width=o.height=40;const x=o.getContext('2d');x.font='30px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(e,20,22);return o});
-    for(let i=0;i<40;i++)P.push({x:Math.random()*W,y:-20-Math.random()*H*.4,vx:(Math.random()-.5)*1.2,vy:2.5+Math.random()*2,r:Math.random()*6,vr:(Math.random()-.5)*.1,w:8+Math.random()*6,c:C[i%C.length],s:i%4===0?sp[(i/4)%sp.length]:null});
-    (function loop(){
-      g.clearRect(0,0,W,H);let alive=0;
-      for(const p of P){p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;
-        if(p.y<H+30){alive++;g.save();g.translate(p.x,p.y);g.rotate(p.r);
-          if(p.s)g.drawImage(p.s,-14,-14,28,28);else{g.fillStyle=p.c;g.fillRect(-p.w/2,-p.w/4,p.w,p.w/2)}
-          g.restore()}}
-      if(alive)cfRaf=requestAnimationFrame(loop);else g.clearRect(0,0,W,H);
-    })();
+    const box=$('cf'),E=['💖','🌸','⭐','🎀'];
+    clearTimeout(cfTimer);box.textContent='';
+    for(let i=0;i<12;i++){
+      const s=document.createElement('span');
+      s.textContent=E[i%E.length];
+      s.style.left=(5+Math.random()*90)+'%';
+      s.style.animationDelay=(Math.random()*.8)+'s';
+      s.style.setProperty('--dx',((Math.random()-.5)*120)+'px');
+      box.appendChild(s);
+    }
+    cfTimer=setTimeout(()=>{box.textContent=''},3600);
   }
 
   $('start').onclick=async()=>{
