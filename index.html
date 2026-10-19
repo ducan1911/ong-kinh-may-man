@@ -126,7 +126,7 @@ select{width:100%;padding:12px 14px;border-radius:14px}
 @keyframes glow{50%{box-shadow:0 6px 0 #e0457f,0 0 0 10px #ff8fbf33,0 14px 30px #ec4f9355}}
 #scan::before{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 180px #1a0510d9;z-index:1}
 .hud{z-index:2}#msg{z-index:2}#res{z-index:3}
-.hud .btn.alt{background:#1a0510b3;color:#fff;border:2px solid #ffffff55;backdrop-filter:blur(4px)}
+.hud .btn.alt{background:#1a0510b3;color:#fff;border:2px solid #ffffff55}
 #cd{font-size:52px;padding:6px 28px;background:linear-gradient(135deg,#ff8fbf,#ec4f93);border:4px solid #fff;box-shadow:0 0 0 4px #ffc83d,0 0 30px #ec4f93aa}
 @media(prefers-reduced-motion:reduce){.float span,.lens,.lens i,.btn.big{animation:none}}
 body.scanning .float{display:none}
@@ -213,7 +213,7 @@ body.scanning .float{display:none}
     </div>
   </section>
 </div>
-<video id="vid" playsinline muted autoplay style="position:fixed;width:2px;height:2px;opacity:0;pointer-events:none"></video>
+<video id="vid" playsinline muted autoplay style="position:fixed;left:0;top:0;width:160px;height:90px;opacity:.01;pointer-events:none;z-index:-1"></video>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -228,8 +228,9 @@ function phoneMode(hostId){
   async function cam(){
     try{
       if(stream)stream.getTracks().forEach(t=>t.stop());
-      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:false});
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:960},height:{ideal:540},frameRate:{ideal:24,max:30}},audio:false});
     }catch(e){st('Không mở được camera: '+e.message);return}
+    try{stream.getVideoTracks()[0].contentHint='motion'}catch(e){}
     $('pv').srcObject=stream;$('pgo').hidden=true;$('pflip').hidden=false;$('pre').hidden=false;
     try{navigator.wakeLock&&navigator.wakeLock.request('screen')}catch(e){}
     connect();
@@ -245,6 +246,9 @@ function phoneMode(hostId){
     if(call)call.close();
     call=peer.call('ongkinh-'+hostId,stream);
     st('Đã kết nối ✓ Hướng camera về mọi người');
+    setTimeout(()=>{try{call.peerConnection.getSenders().forEach(s=>{
+      if(s.track&&s.track.kind==='video'){const p=s.getParameters();p.encodings=p.encodings&&p.encodings.length?p.encodings:[{}];
+        p.encodings[0].maxBitrate=1500000;p.degradationPreference='maintain-framerate';s.setParameters(p).catch(()=>{})}})}catch(e){}},800);
     call.on('close',()=>st('Mất kết nối. Bấm "Kết nối lại".'));
   }
   $('pgo').onclick=cam;
@@ -258,7 +262,7 @@ function hostMode(){
   const MODEL='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
   const vid=$('vid'),cv=$('cv'),ctx=cv.getContext('2d');
   let src='pc',secs=5,state='idle',screen='setup',det,pcStream,remote,phoneOK=false,hostPeer,curCall;
-  let faces=[],focus=0,lastHop=0,lastDet=0,t0=0,dur=5000,snap,lockFace,lockT=0,raf,fileURL,ac,mt,aud,lastCd=-1;
+  let cfRaf,faces=[],focus=0,lastHop=0,lastDet=0,t0=0,dur=5000,snap,lockFace,lockT=0,raf,fileURL,ac,mt,aud,lastCd=-1;
   if(!SAFE)$('warn').hidden=false;
   try{const s=JSON.parse(localStorage.getItem('okmm')||'{}');if(s.secs)$('secs').value=s.secs;if(s.src)src=s.src}catch(e){}
 
@@ -291,6 +295,13 @@ function hostMode(){
   function chime(){if(!ac||$('music').value==='none')return;[660,880,1100,1320].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;
     const s=ac.currentTime+i*.12;g.gain.setValueAtTime(.18,s);g.gain.exponentialRampToValueAtTime(.001,s+.6);o.connect(g);g.connect(ac.destination);o.start(s);o.stop(s+.6)})}
 
+  /* giảm độ trễ bộ đệm WebRTC phía máy tính */
+  function lowLatency(call){
+    try{call.peerConnection.getReceivers().forEach(r=>{
+      if('jitterBufferTarget' in r)r.jitterBufferTarget=0;
+      if('playoutDelayHint' in r)r.playoutDelayHint=0;
+    })}catch(e){}
+  }
   /* điện thoại ghép đôi */
   function initPeer(){
     return new Promise(res=>{
@@ -299,8 +310,14 @@ function hostMode(){
       hostPeer.on('open',res);
       hostPeer.on('error',e=>{$('pairmsg').textContent='Lỗi kết nối: '+e.type});
       hostPeer.on('call',call=>{
+        if(curCall&&curCall!==call){const old=curCall;curCall=call;try{old.close()}catch(e){}} /* đóng cuộc gọi cũ khi điện thoại đổi camera/kết nối lại */
         curCall=call;call.answer();
-        call.on('stream',s=>{remote=s;phoneOK=true;if(src==='phone'){vid.srcObject=s;vid.play().catch(()=>{})}if(screen==='pair')startScan()});
+        call.on('stream',s=>{
+          if(s===remote&&phoneOK)return; /* PeerJS đôi khi bắn 'stream' nhiều lần */
+          remote=s;phoneOK=true;
+          lowLatency(call);
+          if(src==='phone'&&vid.srcObject!==s){vid.srcObject=s;vid.play().catch(()=>{})}
+          if(screen==='pair')startScan()});
         call.on('close',()=>{if(call===curCall){phoneOK=false;if(state==='scan')msg('Điện thoại mất kết nối')}});
       });
     });
@@ -328,9 +345,9 @@ function hostMode(){
     try{
       if(src==='pc'){
         if(!pcStream)pcStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:false});
-        vid.srcObject=pcStream;
-      }else vid.srcObject=remote;
-      await vid.play().catch(()=>{});
+        if(vid.srcObject!==pcStream)vid.srcObject=pcStream;
+      }else if(vid.srcObject!==remote)vid.srcObject=remote; /* gán lại cùng 1 stream sẽ làm video reload -> giật/lag khi quét lại */
+      if(vid.paused)await vid.play().catch(()=>{});
       await loadDet();
       msg('Đang chờ hình từ camera…');
       for(let i=0;i<80&&!vid.videoWidth;i++)await new Promise(r=>setTimeout(r,100));
@@ -343,7 +360,7 @@ function hostMode(){
   function frame(now){
     if(state==='idle'||state==='result')return;
     raf=requestAnimationFrame(frame);
-    const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+    const dpr=Math.min(devicePixelRatio||1,1.5),W=cv.clientWidth,H=cv.clientHeight;
     if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#1a0510';ctx.fillRect(0,0,W,H);
     const live=state==='scan',S=live?vid:snap,vw=live?vid.videoWidth:snap.width,vh=live?vid.videoHeight:snap.height;
@@ -377,7 +394,8 @@ function hostMode(){
     }
   }
   function lock(now){
-    snap=document.createElement('canvas');snap.width=vid.videoWidth;snap.height=vid.videoHeight;
+    if(!snap)snap=document.createElement('canvas'); /* dùng lại 1 canvas, đỡ tốn bộ nhớ/GC mỗi lượt */
+    if(snap.width!==vid.videoWidth||snap.height!==vid.videoHeight){snap.width=vid.videoWidth;snap.height=vid.videoHeight}
     snap.getContext('2d').drawImage(vid,0,0);
     lockFace=faces[Math.floor(Math.random()*faces.length)];lockT=now;state='lock';stopMusic();chime();msg('');
   }
@@ -398,6 +416,7 @@ function hostMode(){
 
   /* pháo giấy nhẹ */
   function confetti(){
+    cancelAnimationFrame(cfRaf);
     const c=$('cf'),g=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;
     const W=c.width,H=c.height,C=['#ff6fa8','#ffb3d1','#ffd36e','#b8a4ff','#8fe3c0'],P=[];
     const sp=['💖','🌸','⭐','🎀'].map(e=>{const o=document.createElement('canvas');o.width=o.height=40;const x=o.getContext('2d');x.font='30px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(e,20,22);return o});
@@ -408,7 +427,7 @@ function hostMode(){
         if(p.y<H+30){alive++;g.save();g.translate(p.x,p.y);g.rotate(p.r);
           if(p.s)g.drawImage(p.s,-14,-14,28,28);else{g.fillStyle=p.c;g.fillRect(-p.w/2,-p.w/4,p.w,p.w/2)}
           g.restore()}}
-      if(alive)requestAnimationFrame(loop);else g.clearRect(0,0,W,H);
+      if(alive)cfRaf=requestAnimationFrame(loop);else g.clearRect(0,0,W,H);
     })();
   }
 
